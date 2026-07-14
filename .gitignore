@@ -27,6 +27,11 @@ __pycache__/
 # PDF duplicates of markdown notes (markdown versions stay)
 Notes/*.pdf
 
+# Research-phase files -- to be added selectively at project end
+Notes/
+notebooks/
+Training py files/
+
 # fastMRI source clone (dependency, installed from source -- not our code)
 fastMRI/
 

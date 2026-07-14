@@ -1,0 +1,30 @@
+{
+  "knee_in_domain": {
+    "pearson_r_pooled": 0.4338,
+    "volume_level_r": 0.7777,
+    "bootstrap_mean_r": 0.4337,
+    "bootstrap_95ci": [
+      0.362,
+      0.5042
+    ]
+  },
+  "brain_ood": {
+    "pearson_r_pooled": -0.1332,
+    "volume_level_r": 0.2474,
+    "bootstrap_mean_r": -0.1522,
+    "bootstrap_95ci": [
+      -0.462,
+      0.1637
+    ],
+    "note": "CI includes zero, no reliable correlation claim can be made"
+  },
+  "drift_shift": {
+    "ratio_slice_level": 1.55,
+    "ratio_volume_level": 1.54,
+    "bootstrap_95ci": [
+      1.35,
+      1.74
+    ],
+    "mannwhitney_p_volume_level": 4.46e-06
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "method": "SSDU-style self-supervised LoRA TTA (rank=4, ACS-protected split)",
+  "base_model": "T8_best",
+  "adapt_samples": 20,
+  "eval_samples": 218,
+  "brain_result": {
+    "before_ssim": 0.6779,
+    "lr_1e-3_trajectory": [
+      0.6722,
+      0.6664,
+      0.659,
+      0.6483,
+      0.6337
+    ],
+    "lr_1e-4_trajectory": [
+      0.6774,
+      0.677,
+      0.6767,
+      0.6761,
+      0.6756
+    ]
+  },
+  "knee_positive_control": {
+    "before_ssim": 0.7741,
+    "lr_1e-3_trajectory": [
+      0.7739,
+      0.773,
+      0.7711,
+      0.7686,
+      0.7659
+    ],
+    "lr_1e-4_trajectory": [
+      0.7741,
+      0.7741,
+      0.7741,
+      0.7741,
+      0.7741
+    ]
+  },
+  "finding": "Monotonic SSIM degradation at both learning rates, both domains. Positive control (knee-to-knee) confirms this is a method/proxy-task issue, not domain-shift-specific.",
+  "scope_caveat": "Applies to an already-decent-baseline regime (T8 achieves 0.678 SSIM on brain before adaptation). Harder, more severely-mismatched-baseline scenarios (which SSDU-style TTA is typically designed for) were not tested."
+}
