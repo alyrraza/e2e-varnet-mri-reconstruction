@@ -107,19 +107,12 @@ def _load_slice_from_h5(data: bytes) -> tuple[torch.Tensor, torch.Tensor, float,
     buf = io.BytesIO(data)
     with h5py.File(buf, "r") as hf:
         kspace = hf["kspace"][0]            # [coils, H, W] or [H, W] for single-coil
-        if "reconstruction_rss" in hf:
-            target = hf["reconstruction_rss"][0]
-        else:
-            target = None
 
         # max_value is stored by fastMRI; fall back to computing it if missing
         if "max" in hf.attrs:
             max_value = float(hf.attrs["max"])
         else:
             max_value = float(np.abs(kspace).max())
-
-    # Convert to tensor; single-coil kspace is [H, W, 2] after transform
-    kspace_t = torch.from_numpy(kspace).float()
 
     # Apply undersampling mask -- seed set explicitly to avoid non-determinism
     mask_func = EquispacedMaskFractionFunc(

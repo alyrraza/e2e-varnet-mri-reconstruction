@@ -31,17 +31,14 @@ Usage:
 
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 import torch
 
 # fastMRI must be installed from source at the pinned commit.
 # See mlops/requirements.txt for the install command.
 try:
-    import fastmri
     from fastmri.models import VarNet
     from fastmri.data.transforms import center_crop
 except ImportError as e:

@@ -40,7 +40,6 @@ import pandas as pd
 try:
     from evidently.report import Report
     from evidently.metric_preset import DataDriftPreset
-    from evidently import ColumnMapping
 except ImportError as e:
     raise ImportError(
         "Evidently not installed. Run: pip install evidently>=0.4.30"

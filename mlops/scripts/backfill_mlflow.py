@@ -13,7 +13,6 @@ MLflow UI to inspect results:
 """
 
 import json
-import sys
 from pathlib import Path
 
 import mlflow
