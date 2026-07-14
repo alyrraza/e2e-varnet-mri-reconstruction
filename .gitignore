@@ -1,0 +1,42 @@
+# Virtual environment (D drive pe hai, GitHub pe nahi chahiye)
+.venv/
+
+# Model checkpoints (large files -- HF Hub pe jayenge)
+checkpoints/*.pt
+
+# Dataset files (fastMRI license ke under, redistribute nahi kar sakte)
+data subset/
+
+# Training logs (very large text files, not useful on GitHub)
+logs/
+
+# MLflow local DB and artifacts
+mlops/mlflow.db
+mlops/mlartifacts/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# PDF duplicates of markdown notes (markdown versions stay)
+Notes/*.pdf
+
+# fastMRI source clone (dependency, installed from source -- not our code)
+fastMRI/
+
+# MLflow local runs folder
+mlruns/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables (never commit secrets)
+.env
+.env.*

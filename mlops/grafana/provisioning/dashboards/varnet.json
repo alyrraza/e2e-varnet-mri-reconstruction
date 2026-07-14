@@ -1,0 +1,64 @@
+{
+  "title": "E2E-VarNet MRI API",
+  "uid": "varnet-mri",
+  "panels": [
+    {
+      "title": "Request Rate (req/sec)",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 6},
+      "targets": [{
+        "expr": "rate(http_requests_total{job=\"varnet-api\"}[1m])",
+        "legendFormat": "req/s"
+      }]
+    },
+    {
+      "title": "P95 Latency (ms)",
+      "type": "timeseries",
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 6},
+      "targets": [{
+        "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"varnet-api\"}[1m])) * 1000",
+        "legendFormat": "p95 ms"
+      }]
+    },
+    {
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": {"x": 16, "y": 0, "w": 8, "h": 6},
+      "targets": [{
+        "expr": "rate(http_requests_total{job=\"varnet-api\", status=~\"5..\"}[1m])",
+        "legendFormat": "errors/s"
+      }]
+    },
+    {
+      "title": "Uncertainty Scalar (latest)",
+      "type": "gauge",
+      "gridPos": {"x": 0, "y": 6, "w": 8, "h": 6},
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 0.015},
+              {"color": "red", "value": 0.018}
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "varnet_uncertainty_scalar",
+        "legendFormat": "uncertainty"
+      }]
+    },
+    {
+      "title": "OOD Flag Rate (1 = flagged)",
+      "type": "timeseries",
+      "gridPos": {"x": 8, "y": 6, "w": 8, "h": 6},
+      "targets": [{
+        "expr": "varnet_flagged_for_review",
+        "legendFormat": "flagged"
+      }]
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}

@@ -1,0 +1,90 @@
+name: Quality Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff>=0.4.0
+
+      - name: Run ruff
+        run: ruff check mlops/
+
+  quality-gate:
+    name: Model Quality Gate (CPU)
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install fastMRI from pinned source
+        run: |
+          git clone https://github.com/facebookresearch/fastMRI.git /tmp/fastmri
+          cd /tmp/fastmri
+          git checkout 91f2df4711adbb6d643df1810f234e4abcf5881b
+          pip install -e . --quiet
+
+      - name: Install project dependencies
+        run: pip install -r mlops/requirements.txt --quiet
+
+      - name: Download model checkpoints
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install huggingface-hub --quiet
+          python - <<'EOF'
+          from huggingface_hub import hf_hub_download
+          import os, pathlib
+          ckpt_dir = pathlib.Path("checkpoints")
+          ckpt_dir.mkdir(exist_ok=True)
+          # Download T4 checkpoints (needed for uncertainty pipeline test)
+          for filename in ["best_model.pt", "checkpoint_epoch_50.pt",
+                           "t6_best_model.pt", "t8_best_model.pt"]:
+              hf_hub_download(
+                  repo_id="alyrraza/e2e-varnet-mri",
+                  filename=filename,
+                  local_dir=str(ckpt_dir),
+                  token=os.environ.get("HF_TOKEN"),
+              )
+          print("Checkpoints downloaded.")
+          EOF
+
+      - name: Run quality gate tests
+        run: |
+          pytest mlops/tests/test_quality_gate.py -v \
+            --tb=short \
+            --timeout=300
+
+      - name: Register challenger in MLflow (on pass)
+        if: success() && github.ref == 'refs/heads/main'
+        run: |
+          python - <<'EOF'
+          import mlflow
+          from mlflow.tracking import MlflowClient
+
+          # Challenger registration -- promotion to champion requires human approval
+          # (a separate, manual step -- never automatic per project rules)
+          mlflow.set_tracking_uri("sqlite:///mlops/mlflow.db")
+          client = MlflowClient()
+          print("Quality gate passed. Candidate can be promoted to champion manually.")
+          print("Run: python mlops/scripts/backfill_mlflow.py to update the registry.")
+          EOF

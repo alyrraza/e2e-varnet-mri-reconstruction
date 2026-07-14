@@ -1,0 +1,23 @@
+{
+  "K": 2,
+  "members": [
+    "T4_epoch21",
+    "T4_epoch50"
+  ],
+  "limitation_note": "Ideal spaced subset was epochs 21/30/40/50 (K=4); only epoch 21 and 50 survived Kaggle-to-Vast.ai migration. K=2 used instead.",
+  "in_domain": {
+    "pearson_r": 0.4338107560843875,
+    "pearson_p": 8.793677099683767e-66,
+    "spearman_rho": 0.4595125271652372
+  },
+  "ood_brain": {
+    "pearson_r": -0.13321615074680712,
+    "pearson_p": 0.04002410327421386
+  },
+  "shift_detection": {
+    "shift_ratio": 1.5453630486101562,
+    "mannwhitney_p": 5.3207515167940817e-42
+  },
+  "benchmark_comparison": "In-domain r=0.43 vs >90% (conformal QR, arXiv:2601.13236) and R=0.94 (NPB-REC, Kustner et al.) - honest cost-quality tradeoff for a zero-training-cost signal.",
+  "headline_finding": "Checkpoint-ensemble uncertainty is a moderate in-domain error predictor but a strong, statistically robust OOD/distribution-shift detector (1.55x shift, p<1e-41), making it directly usable as a drift-monitor validation signal even though its per-slice error correlation breaks down under domain shift."
+}

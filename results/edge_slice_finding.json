@@ -1,0 +1,10 @@
+{
+  "bottom_10pct_count": 141,
+  "bottom_10pct_ssim_range": [
+    0.4392,
+    0.6298
+  ],
+  "bottom_10pct_mean": 0.5541,
+  "overall_mean": 0.765,
+  "finding": "Bottom-10% worst-SSIM slices are systematically early slice_num (0-2) edge-of-volume slices with minimal/no anatomical content, not reconstruction failures. This is expected fastMRI dataset structure and consistent with standard (unfiltered) evaluation convention; reported mean SSIM is not adjusted for this."
+}

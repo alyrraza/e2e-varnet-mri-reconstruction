@@ -1,0 +1,29 @@
+# Core ML
+torch>=2.0.0
+numpy>=1.24.0
+h5py>=3.8.0
+scipy>=1.10.0
+
+# fastMRI -- install from source at pinned commit, not pip
+# git clone https://github.com/facebookresearch/fastMRI.git
+# cd fastMRI && git checkout 91f2df4711adbb6d643df1810f234e4abcf5881b && pip install -e .
+
+# MLflow
+mlflow>=2.9.0
+
+# FastAPI
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+
+# Evidently drift monitoring
+evidently>=0.4.30
+
+# Prometheus metrics
+prometheus-fastapi-instrumentator>=6.1.0
+prometheus-client>=0.20.0
+
+# Testing + linting
+pytest>=8.0.0
+httpx>=0.27.0
+ruff>=0.4.0

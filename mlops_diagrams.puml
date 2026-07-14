@@ -1,0 +1,158 @@
+@startuml system_architecture
+!theme plain
+title E2E-VarNet MLOps System — Full Architecture
+
+skinparam componentStyle rectangle
+skinparam backgroundColor white
+
+actor "Doctor / Client" as client
+
+package "Docker Compose Environment" {
+
+  component "FastAPI (api container)\nComponent 3" as api {
+    component "/reconstruct endpoint" as endpoint
+  }
+
+  component "Uncertainty Pipeline\nComponent 2\n(K=2 checkpoint ensemble)" as uncertainty {
+    component "model_best\n(T4 epoch 21)" as m1
+    component "model_final\n(T4 epoch 50)" as m2
+  }
+
+  component "Evidently Drift Monitor\nComponent 4" as evidently {
+    component "KER feature" as ker
+    component "eSNR feature" as esnr
+    component "matrix_width feature" as mw
+  }
+
+  component "MLflow Server\n(mlflow container)\nComponent 1" as mlflow {
+    database "mlflow.db\n(SQLite)" as mlflowdb
+    component "Model Registry\n@champion / @challenger" as registry
+  }
+
+  component "Prometheus\n(prometheus container)\nComponent 6" as prometheus
+  component "Grafana\n(grafana container)\nComponent 6" as grafana
+}
+
+folder "checkpoints/\n(volume mount, read-only)" as ckpt_folder
+folder "data subset/\n(CI validation data)" as data_folder
+
+client --> endpoint : POST k-space slice
+endpoint --> uncertainty : run inference
+uncertainty --> m1
+uncertainty --> m2
+m1 --> uncertainty : reconstruction 1
+m2 --> uncertainty : reconstruction 2
+uncertainty --> endpoint : mean recon +\nuncertainty_scalar +\nflagged_for_review
+
+endpoint --> evidently : k-space features
+evidently --> ker
+evidently --> esnr
+evidently --> mw
+evidently --> endpoint : drift_detected (bool)
+
+endpoint --> client : JSON response\n{reconstruction, uncertainty,\nflagged, drift_status}
+
+endpoint --> prometheus : expose /metrics\n(request rate, latency,\nuncertainty distribution)
+prometheus --> grafana : query metrics (PromQL)
+grafana --> client : dashboard (browser)
+
+uncertainty ..> ckpt_folder : loads .pt files\n(at startup, once)
+mlflow --> mlflowdb
+mlflow --> registry
+registry ..> ckpt_folder : artifacts logged\nfrom here (backfill)
+
+note right of registry
+  T4 epoch-21  -> @champion
+  T4 epoch-50  -> (no alias, used
+                   only for ensemble)
+  T6 best      -> registered
+  T8 best      -> registered
+end note
+
+@enduml
+
+@startuml cicd_sequence
+!theme plain
+title CI/CD Quality Gate — What Happens on a Push (Sequence)
+
+actor Developer as dev
+participant "GitHub\n(push event)" as gh
+participant "GitHub Actions\nRunner (CPU only)" as runner
+participant "lint job" as lint
+participant "quality-gate job" as gate
+participant "HuggingFace Hub" as hf
+participant "test_quality_gate.py" as pytest
+participant "checkpoints/\n(downloaded)" as ckpt
+participant "data subset/*.h5" as data
+participant "MLflow Registry" as reg
+
+dev -> gh : git push (main branch)
+
+alt path filter: only mlops/** or checkpoints/** changed
+  gh -> runner : trigger workflow
+else only README or unrelated file changed
+  gh -> runner : workflow NOT triggered (filtered out)
+end
+
+runner -> lint : run ruff check mlops/
+lint --> runner : pass / fail
+
+alt lint failed
+  runner -> dev : workflow stops, red X shown
+else lint passed
+  runner -> gate : needs: lint satisfied, proceed
+end
+
+gate -> gate : install fastMRI (pinned commit)
+gate -> gate : pip install -r requirements.txt
+gate -> hf : hf_hub_download(checkpoint files)
+hf --> ckpt : .pt files saved to runner disk
+
+gate -> pytest : pytest mlops/tests/test_quality_gate.py -v
+
+group for each entry in CHECKPOINTS_TO_TEST\n(currently hardcoded: T4, T6, T8 -- see note)
+  pytest -> ckpt : torch.load(checkpoint)
+  ckpt --> pytest : model weights
+  pytest -> pytest : infer num_cascades from filename
+  pytest -> pytest : build VarNet, load_state_dict, eval()
+
+  group for each .h5 file in data subset/
+    pytest -> data : read kspace[mid_slice]
+    data --> pytest : k-space array
+    pytest -> pytest : apply_mask(seed=42) -- deterministic
+    pytest -> pytest : model(masked_kspace, mask) -> reconstruction
+    pytest -> pytest : compute_ssim(reconstruction, ground_truth)
+  end
+  pytest -> pytest : mean_ssim = average over all files
+  pytest -> pytest : assert mean_ssim >= (0.7453 + 0.005)
+end
+
+pytest -> pytest : test_uncertainty_pipeline_loads()\n(sanity check Component 2)
+
+alt any assertion failed
+  pytest --> gate : exit code != 0
+  gate -> dev : workflow FAILS, red X, no registration
+else all tests passed
+  pytest --> gate : exit code 0
+  gate -> reg : print reminder\n("candidate can be promoted --\nmanual approval required")
+  note right of reg
+    NOT automatic.
+    A human must run
+    backfill_mlflow.py /
+    set_registered_model_alias
+    manually to promote
+    challenger -> champion.
+  end note
+  gate -> dev : workflow PASSES, green check
+end
+
+note over pytest
+  CURRENT LIMITATION (flagged in review):
+  this re-tests ALL THREE existing models
+  (T4/T6/T8) on every run, not just a new
+  candidate. Proposed fix: CANDIDATE_CHECKPOINT
+  env var to test only the new model when
+  set, via workflow_dispatch input.
+end note
+
+@enduml
