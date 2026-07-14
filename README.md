@@ -6,6 +6,40 @@ Reproduction of [E2E-VarNet (Sriram et al., MICCAI 2020)](https://arxiv.org/abs/
 
 ---
 
+## Live Demo & Deployment
+
+| What | Where |
+|---|---|
+| **Gradio demo + REST API** | [huggingface.co/spaces/alyrraza/e2e-varnet-api](https://huggingface.co/spaces/alyrraza/e2e-varnet-api) |
+| **REST endpoint** | `POST https://alyrraza-e2e-varnet-api.hf.space/reconstruct` |
+| **Health check** | `GET https://alyrraza-e2e-varnet-api.hf.space/health` |
+| **React frontend** | Deployed on Vercel (Vite + Tailwind, calls REST endpoint) |
+| **Model weights** | [huggingface.co/alyrraza/e2e-varnet-mri-reconstruction](https://huggingface.co/alyrraza/e2e-varnet-mri-reconstruction) *(private)* |
+| **GitHub** | [github.com/alyrraza/e2e-varnet-mri-reconstruction](https://github.com/alyrraza/e2e-varnet-mri-reconstruction) |
+
+### How inference works end-to-end
+
+```
+User uploads fastMRI .h5 file
+        ↓
+React frontend (Vercel)
+        ↓  POST /reconstruct  (multipart/form-data)
+HuggingFace Space  —  ZeroGPU, Gradio 5 + FastAPI
+        ↓  hf_hub_download (authenticated via HF_TOKEN secret)
+Model weights (private HF repo: best_model.pt + checkpoint_epoch_50.pt)
+        ↓
+VarNet T=4 (K=2 checkpoint ensemble)
+  • 4× undersampled k-space → centre-slice reconstruction
+  • Per-pixel uncertainty map (std across K=2 checkpoints)
+  • Drift flag if uncertainty_scalar > 0.018
+        ↓
+JSON response: ssim, psnr, uncertainty_scalar, reconstruction_b64, uncertainty_map_b64
+        ↓
+React renders images + metrics
+```
+
+---
+
 ## Headline Result
 
 > Checkpoint-ensemble uncertainty magnitude rises **1.54x** when the model sees out-of-distribution brain scans vs in-domain knee scans it was trained on.
@@ -141,15 +175,27 @@ Before/After comparison (zero-filled input vs T=8 reconstruction vs ground truth
 ## MLOps Stack
 
 ```
-FastAPI backend  ──►  HuggingFace Space (live inference)
-     │
-     ├── Uncertainty pipeline (K=2 ensemble, drift flag)
-     ├── Evidently AI (k-space feature drift monitor)
-     └── Prometheus + Grafana (RED metrics + uncertainty gauge)
+Training (Kaggle / Vast.ai GPU)
+  └── fastMRI single-coil knee, 50 epochs, T=4/6/8 cascades
+  └── Checkpoints → private HuggingFace model repo
 
-MLflow  ──►  Model registry (T4 @champion, T6, T8)
-GitHub Actions  ──►  Lint + CPU quality gate (baseline-relative threshold)
-React + Vercel  ──►  Frontend (upload .h5 -> reconstruction + uncertainty map)
+Serving
+  ├── HuggingFace Space (alyrraza/e2e-varnet-api)
+  │     ├── Gradio 5 UI  at  /
+  │     ├── POST /reconstruct  (REST, called by frontend)
+  │     └── GET  /health
+  ├── ZeroGPU (free-tier GPU acquired per request)
+  └── K=2 checkpoint ensemble: best_model.pt (epoch-21) + checkpoint_epoch_50.pt
+
+Frontend
+  └── React + Vite + Tailwind  →  Vercel
+        └── calls VITE_API_URL=/reconstruct
+
+Monitoring / CI
+  ├── Uncertainty scalar > 0.018  →  OOD drift flag in response JSON
+  ├── Evidently AI  →  k-space feature drift monitor (offline)
+  ├── Prometheus + Grafana  →  RED metrics + uncertainty gauge (local docker)
+  └── GitHub Actions  →  ruff lint + CPU quality gate (SSIM threshold)
 ```
 
 ---
@@ -192,21 +238,34 @@ Threshold: `zero_filled_SSIM (0.7453) + 0.005 = 0.7503` (baseline-relative, not 
 ## Project Structure
 
 ```
-e2e-varnet-mri-reconstruction/
-├── mlops/
-│   ├── scripts/backfill_mlflow.py    # Component 1: MLflow backfill
+e2e-varnet-mri-reconstruction/          ← GitHub repo
+├── frontend/                           ← React app (deployed on Vercel)
 │   ├── src/
-│   │   ├── uncertainty.py            # Component 2: checkpoint ensemble
-│   │   ├── api/main.py               # Component 3: FastAPI backend
-│   │   └── monitoring/drift_check.py # Component 4: Evidently drift monitor
-│   ├── tests/test_quality_gate.py    # Component 5: CI quality gate
-│   ├── prometheus.yml                # Component 6: Prometheus config
-│   └── grafana/                      # Component 6: Grafana dashboard
-├── figures/                          # Result plots from research phase
-├── results/                          # Locked JSON results (GAP 1/2/3)
+│   │   ├── api/client.ts               # calls HF Space /reconstruct
+│   │   ├── components/                 # UploadZone, MetricsBar, ImagePanel
+│   │   └── App.tsx
+│   └── vite.config.ts
+├── mlops/
+│   ├── scripts/backfill_mlflow.py      # MLflow backfill
+│   ├── src/
+│   │   ├── uncertainty.py              # K=2 checkpoint ensemble
+│   │   ├── api/main.py                 # local FastAPI (for docker)
+│   │   └── monitoring/drift_check.py   # Evidently drift monitor
+│   ├── tests/test_quality_gate.py      # CI quality gate
+│   ├── prometheus.yml
+│   └── grafana/
+├── figures/                            # Result plots from research phase
+├── results/                            # Locked JSON results (GAP 1/2/3)
 ├── Dockerfile
 ├── docker-compose.yml
 └── .github/workflows/quality_gate.yml
+
+HuggingFace Space (alyrraza/e2e-varnet-api)  ← separate HF repo
+└── app.py                              # Gradio + FastAPI, ZeroGPU inference
+
+HuggingFace Model (alyrraza/e2e-varnet-mri-reconstruction)  ← private
+├── best_model.pt                       # T=4 epoch-21, best val SSIM (41 MB)
+└── checkpoint_epoch_50.pt             # T=4 epoch-50, final (124 MB)
 ```
 
 ---
