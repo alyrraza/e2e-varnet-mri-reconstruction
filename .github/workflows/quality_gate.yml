@@ -60,7 +60,7 @@ jobs:
           for filename in ["best_model.pt", "checkpoint_epoch_50.pt",
                            "t6_best_model.pt", "t8_best_model.pt"]:
               hf_hub_download(
-                  repo_id="alyrraza/e2e-varnet-mri",
+                  repo_id="alyrraza/e2e-varnet-mri-reconstruction",
                   filename=filename,
                   local_dir=str(ckpt_dir),
                   token=os.environ.get("HF_TOKEN"),
