@@ -69,6 +69,8 @@ jobs:
           EOF
 
       - name: Run quality gate tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           pytest mlops/tests/test_quality_gate.py -v \
             --tb=short \
